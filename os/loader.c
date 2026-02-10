@@ -48,9 +48,9 @@ int run_all_app()
 		trapframe->epc = entry;
 		trapframe->sp = (uint64)p->ustack + USER_STACK_SIZE;
 		p->state = RUNNABLE;
-		/*
-		* LAB1: you may need to initialize your new fields of proc here
-		*/
+		
+		p->start_time = -1;
+		memset(p->syscall_times, 0, sizeof(p->syscall_times));
 	}
 	return 0;
 }
