@@ -31,7 +31,6 @@ void proc_init(void)
 		p->state = UNUSED;
 		p->kstack = (uint64)kstack[p - pool];
 		p->trapframe = (struct trapframe *)trapframe[p - pool];
-
 		p->start_time = -1;
 		memset(p->syscall_times, 0, sizeof(p->syscall_times));
 	}
@@ -87,6 +86,7 @@ void scheduler(void)
 
 				if (p->start_time < 0) {
 					p->start_time = get_msec();
+					printf("SCHEDULED AT TIME : %d\n", p->start_time);
 				}
 
 				p->state = RUNNING;

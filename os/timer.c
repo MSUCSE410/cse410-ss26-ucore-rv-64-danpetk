@@ -25,5 +25,5 @@ void set_next_timer()
 
 uint64 get_msec() {
 	uint64 cycle = get_cycle();
-	return (cycle % CPU_FREQ) * 1000 / CPU_FREQ;
+	return cycle * 1000 / CPU_FREQ;
 }
