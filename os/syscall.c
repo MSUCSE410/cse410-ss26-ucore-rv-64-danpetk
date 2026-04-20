@@ -136,25 +136,34 @@ int sys_mmap(void* start, unsigned long long len, int port, int _flag, int _fd) 
 
 uint64 sys_spawn(uint64 va)
 {
-	struct proc *p = curr_proc();
-	char filename[MAX_STR_LEN];
+	struct proc *cp = curr_proc();
 
-	if (copyinstr(p->pagetable, filename, va, MAX_STR_LEN) < 0) {
+	char filename[MAX_STR_LEN];
+	if (copyinstr(cp->pagetable, filename, va, MAX_STR_LEN) < 0) {
 		return -1;
 	}
 
-	int id = get_id_by_name(filename);
-	if (id < 0) {
+	struct inode *ip;
+	if ((ip = namei(filename)) == 0) {
 		return -1;
 	}
 	
 	struct proc *np;
 	if ((np = allocproc()) == 0) {
+		iput(ip);
 		return -1;
 	}
 
-	loader(id, np);
-	np->parent = p;
+	init_stdio(np);
+	bin_loader(ip, np);
+	iput(ip);
+
+	char *argv[2];
+	argv[0] = filename;
+	argv[1] = NULL;
+	np->trapframe->a0 = push_argv(np, argv);
+
+	np->parent = cp;
 	add_task(np);
 	return np->pid;
 }

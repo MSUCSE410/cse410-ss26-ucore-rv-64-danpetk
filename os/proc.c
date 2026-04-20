@@ -3,6 +3,7 @@
 #include "loader.h"
 #include "trap.h"
 #include "vm.h"
+#include "timer.h"
 #include "queue.h"
 
 struct proc pool[NPROC];
