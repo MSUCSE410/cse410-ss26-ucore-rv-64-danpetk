@@ -4,6 +4,7 @@
 #include "trap.h"
 #include "vm.h"
 #include "queue.h"
+#include "timer.h"
 
 struct proc pool[NPROC];
 __attribute__((aligned(16))) char kstack[NPROC][PAGE_SIZE];
@@ -127,6 +128,10 @@ void scheduler()
 		}
 		tracef("swtich to proc %d", p - pool);
 		p->state = RUNNING;
+
+		if (p->start_time < 0) {
+			p->start_time = get_msec();
+		}
 		current_proc = p;
 		swtch(&idle.context, &p->context);
 	}
