@@ -431,11 +431,14 @@ int dirlink(struct inode *dp, char *name, uint inum)
 int dirunlink(struct inode *dp, char *name) {
 
 	uint offset;
+	struct inode *ip;
+
 	// File to unlink doesnt exist
-	if (dirlookup(dp, name, &offset) == 0) {
+	if ((ip = dirlookup(dp, name, &offset)) == 0) {
 		return -1;
 	}
-	
+	iput(ip);
+
 	struct dirent de;
 	memset(&de, 0, sizeof(de));
 	if (writei(dp, 0, (uint64)&de, offset, sizeof(de)) != sizeof(de))
@@ -465,5 +468,7 @@ struct inode *namei(char *path)
 	struct inode *dp = root_dir();
 	if (dp == 0)
 		panic("fs dumped.\n");
-	return dirlookup(dp, path + skip, 0);
+	struct inode* res = dirlookup(dp, path + skip, 0);
+	// iput(dp);
+	return res;
 }

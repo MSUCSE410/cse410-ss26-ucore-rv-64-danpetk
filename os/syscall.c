@@ -363,11 +363,13 @@ int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath, uint6
 		return -1;
 	}
 
+	struct inode* dp = root_dir();
 	ivalid(ip);
 	ip->nlink += 1;
 	iupdate(ip);
-	dirlink(root_dir(), newname, ip->inum);
+	dirlink(dp, newname, ip->inum);
 	iput(ip);
+	iput(dp);
 
 	return 0;	
 }
@@ -385,11 +387,13 @@ int sys_unlinkat(int dirfd, uint64 name, uint64 flags){
 		return -1;
 	}
 
+	struct inode* dp = root_dir();
 	ivalid(ip);
 	ip->nlink -= 1;
 	iupdate(ip);
-	dirunlink(root_dir(), filename);
+	dirunlink(dp, filename);
 	iput(ip);
+	iput(dp);
 
 	return 0;
 }
