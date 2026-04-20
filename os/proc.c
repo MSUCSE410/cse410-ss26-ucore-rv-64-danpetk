@@ -143,6 +143,9 @@ void scheduler()
 		}
 		tracef("swtich to proc %d", p - pool);
 		p->state = RUNNING;
+		if (p->start_time < 0) {
+			p->start_time = get_msec();
+		}
 		current_proc = p;
 		swtch(&idle.context, &p->context);
 	}
