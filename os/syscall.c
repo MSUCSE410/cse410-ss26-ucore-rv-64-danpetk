@@ -5,6 +5,8 @@
 #include "syscall_ids.h"
 #include "timer.h"
 #include "trap.h"
+#include "const.h"
+#include "proc.h"
 
 uint64 console_write(uint64 va, uint64 len)
 {
@@ -70,6 +72,125 @@ uint64 sys_read(int fd, uint64 va, uint64 len)
 		panic("unknown file type %d\n", f->type);
 	}
 }
+
+int sys_task_info(TaskInfo* ti) {
+	struct proc *target_proc = curr_proc();
+	if (target_proc->start_time < 0) {
+		return -1;
+	}
+
+	uint64 time_ms = get_msec();
+	printf("time_ms: %d, tp start time: %d", time_ms, target_proc->start_time);
+	int time_elapsed_ms = time_ms - target_proc->start_time;
+	if (time_elapsed_ms < 0) {
+		return -1;
+	}
+
+	TaskInfo pti;
+	pti.status = Running;
+	pti.time = time_elapsed_ms;
+	memmove(pti.syscall_times, target_proc->syscall_times, sizeof(pti.syscall_times));
+	
+	return copyout(curr_proc()->pagetable, (uint64)ti, (char*)&pti, sizeof(pti));
+}
+
+// TODO: add support for mmap and munmap syscall.
+// hint: read through docstrings in vm.c. Watching CH4 video may also help.
+// Note the return value and PTE flags (especially U,X,W,R)
+
+int sys_mmap(void* start, unsigned long long len, int port, int _flag, int _fd) {
+	// see if port valid
+	if (((port & ~0x7) != 0) || ((port & 0x7) == 0)) {
+		return -1;
+	}
+	
+	// make sure start is aligned
+	if ((((uint64)start) % PAGE_SIZE) != 0) {
+		return -1;
+	}
+
+	uint64 start_va = (uint64)start;
+	uint64 end_va = PGROUNDUP(start_va + len);
+	uint64 cva;
+	pagetable_t pagetable = curr_proc()->pagetable;
+	
+	int perm = PTE_U;
+	if (port & 1) { perm |= PTE_R; }
+	if (port & 2) { perm |= PTE_W; }
+	if (port & 4) { perm |= PTE_X; }
+
+	for(cva = start_va; cva < end_va; cva += PAGE_SIZE) {
+		void* page = kalloc();
+		if (page == 0) {
+			return -1;
+		}
+		memset(page, 0, PGSIZE);
+
+		if (mappages(pagetable, cva, PAGE_SIZE, (uint64)page, perm) != 0) {
+			return -1;
+		}
+	}
+
+	return 0;	
+}
+
+uint64 sys_spawn(uint64 va)
+{
+	struct proc *p = curr_proc();
+	char filename[MAX_STR_LEN];
+
+	if (copyinstr(p->pagetable, filename, va, MAX_STR_LEN) < 0) {
+		return -1;
+	}
+
+	int id = get_id_by_name(filename);
+	if (id < 0) {
+		return -1;
+	}
+	
+	struct proc *np;
+	if ((np = allocproc()) == 0) {
+		return -1;
+	}
+
+	loader(id, np);
+	np->parent = p;
+	add_task(np);
+	return np->pid;
+}
+
+uint64 sys_set_priority(long long prio){
+	if (prio < 2) {
+		return -1;
+	}
+
+	curr_proc()->prio = prio;
+	return prio;
+}
+
+int sys_munmap(void* start, unsigned long long len) {
+
+	// make sure start is aligned
+	if ((((uint64)start) % PAGE_SIZE) != 0) {
+		return -1;
+	}
+
+	uint64 start_va = (uint64)start;
+	uint64 end_va = PGROUNDUP(start_va + len);
+	uint64 cva;
+	pagetable_t pagetable = curr_proc()->pagetable;
+
+	for(cva = start_va; cva < end_va; cva += PAGE_SIZE) {
+		if (useraddr(pagetable, cva) == 0) {
+			return -1;
+		}
+
+		uvmunmap(pagetable, cva, 1, 1); 
+	}
+
+	return 0;	
+}
+
 
 __attribute__((noreturn)) void sys_exit(int code)
 {
@@ -142,17 +263,6 @@ uint64 sys_wait(int pid, uint64 va)
 	return wait(pid, code);
 }
 
-uint64 sys_spawn(uint64 va)
-{
-	// TODO: your job is to complete the sys call
-	return -1;
-}
-
-uint64 sys_set_priority(long long prio)
-{
-	// TODO: your job is to complete the sys call
-	return -1;
-}
 
 uint64 sys_openat(uint64 va, uint64 omode, uint64 _flags)
 {
@@ -247,6 +357,18 @@ void syscall()
 		break;
 	case SYS_unlinkat:
 	    ret = sys_unlinkat(args[0],args[1],args[2]);
+	case SYS_task_info:
+		ret = sys_task_info((TaskInfo *)args[0]);
+		break;
+	case SYS_mmap:
+		ret = sys_mmap((void*) args[0], args[1], args[2], args[3], args[4]);
+		break;
+	case SYS_munmap:
+		ret = sys_munmap((void*) args[0], args[1]);
+		break;
+	case SYS_setpriority:
+		ret = sys_set_priority(args[0]);
+		break;
 	case SYS_spawn:
 		ret = sys_spawn(args[0]);
 		break;

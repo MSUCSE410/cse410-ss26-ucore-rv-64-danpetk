@@ -288,6 +288,7 @@
 #define SYS_fsconfig 431
 #define SYS_fsmount 432
 #define SYS_fspick 433
+#define SYS_task_info 410
 #define SYS_pidfd_open 434
 #define SYS_clone3 435
 #define SYS_openat2 437

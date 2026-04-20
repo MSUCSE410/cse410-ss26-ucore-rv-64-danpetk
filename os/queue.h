@@ -3,6 +3,7 @@
 #define QUEUE_SIZE (1024)
 
 // TODO: change the queue to a priority queue sorted by priority
+struct proc;
 
 struct queue {
 	int data[QUEUE_SIZE];
@@ -13,6 +14,6 @@ struct queue {
 
 void init_queue(struct queue *);
 void push_queue(struct queue *, int);
-int pop_queue(struct queue *);
+int pop_queue(struct queue *, struct proc *);
 
 #endif // QUEUE_H

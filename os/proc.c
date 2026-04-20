@@ -52,7 +52,7 @@ int allocpid()
 
 struct proc *fetch_task()
 {
-	int index = pop_queue(&task_queue);
+	int index = pop_queue(&task_queue, pool);
 	if (index < 0) {
 		debugf("No task to fetch\n");
 		return NULL;
@@ -96,6 +96,11 @@ found:
 	memset((void *)p->files, 0, sizeof(struct file *) * FD_BUFFER_SIZE);
 	p->context.ra = (uint64)usertrapret;
 	p->context.sp = p->kstack + KSTACK_SIZE;
+
+	p->start_time = -1;
+	p->prio = 16;
+	p->stride = 0;
+	memset(p->syscall_times, 0, sizeof(p->syscall_times));
 	return p;
 }
 
