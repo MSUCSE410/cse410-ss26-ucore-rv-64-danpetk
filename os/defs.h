@@ -15,6 +15,9 @@
 
 #define BIG_STRIDE 65536
 
+#define DIR 0x040000 // directory
+#define FILE 0x100000 // ordinary regular fil
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 #define MIN(a, b) (a < b ? a : b)

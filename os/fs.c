@@ -413,7 +413,7 @@ int dirlink(struct inode *dp, char *name, uint inum)
 		iput(ip);
 		return -1;
 	}
-
+	
 	// Look for an empty dirent.
 	for (off = 0; off < dp->size; off += sizeof(de)) {
 		if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
@@ -424,6 +424,21 @@ int dirlink(struct inode *dp, char *name, uint inum)
 	strncpy(de.name, name, DIRSIZ);
 	de.inum = inum;
 	if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+		panic("dirlink");
+	return 0;
+}
+
+int dirunlink(struct inode *dp, char *name) {
+
+	uint offset;
+	// File to unlink doesnt exist
+	if (dirlookup(dp, name, &offset) == 0) {
+		return -1;
+	}
+	
+	struct dirent de;
+	memset(&de, 0, sizeof(de));
+	if (writei(dp, 0, (uint64)&de, offset, sizeof(de)) != sizeof(de))
 		panic("dirlink");
 	return 0;
 }

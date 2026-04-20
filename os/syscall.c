@@ -296,19 +296,102 @@ uint64 sys_close(int fd)
 	return 0;
 }
 
+typedef struct {
+	uint64 dev;
+	uint64 ino;
+	uint32 mode;
+	uint32 nlink;
+	uint64 pad[7];
+} Stat;
+
 int sys_fstat(int fd,uint64 stat){
-	//TODO: your job is to complete the syscall
-	return -1;
+	struct proc *p = curr_proc();
+
+	if (fd < 0 || fd >= FD_BUFFER_SIZE) {
+		return -1;
+	}
+
+	struct file *file = p->files[fd];
+	if (file == 0) {
+		return -1;
+	}
+
+	// probably redundant because of copyout but to be safe
+	if (stat == 0) { 
+		return -1;
+	}
+
+	Stat st;
+
+	ivalid(file->ip);
+	st.dev = 0;
+	st.ino = file->ip->inum;
+	st.nlink = file->ip->nlink;
+	if (file->ip->type == T_DIR) {
+		st.mode = DIR;
+	} else {
+		st.mode = FILE;
+	}
+	st.nlink = file->ip->nlink;
+	memset(st.pad, 0, sizeof(st.pad));
+
+	if(copyout(p->pagetable, stat, (char*)&st, sizeof(st)) < 0) {
+		return -1;
+	}
+
+	return 0;
 }
 
 int sys_linkat(int olddirfd, uint64 oldpath, int newdirfd, uint64 newpath, uint64 flags){
-	//TODO: your job is to complete the syscall
-	return -1;
+	struct proc *p = curr_proc();
+	char oldname[MAX_STR_LEN];
+	char newname[MAX_STR_LEN];
+
+	if (copyinstr(p->pagetable, oldname, oldpath, MAX_STR_LEN) < 0) {
+		return -1;
+	}
+	if (copyinstr(p->pagetable, newname, newpath, MAX_STR_LEN) < 0) {
+		return -1;
+	}
+
+	if (strncmp(oldname, newname, MAX_STR_LEN) == 0) {
+		return -1;
+	}
+
+	struct inode *ip = namei(oldname);
+	if (ip == 0) {
+		return -1;
+	}
+
+	ivalid(ip);
+	ip->nlink += 1;
+	iupdate(ip);
+	dirlink(root_dir(), newname, ip->inum);
+	iput(ip);
+
+	return 0;	
 }
 
 int sys_unlinkat(int dirfd, uint64 name, uint64 flags){
-	//TODO: your job is to complete the syscall
-	return -1;
+	struct proc *p = curr_proc();
+	char filename[MAX_STR_LEN];
+
+	if (copyinstr(p->pagetable, filename, name, MAX_STR_LEN) < 0) {
+		return -1;
+	}
+
+	struct inode *ip = namei(filename);
+	if (ip == 0) {
+		return -1;
+	}
+
+	ivalid(ip);
+	ip->nlink -= 1;
+	iupdate(ip);
+	dirunlink(root_dir(), filename);
+	iput(ip);
+
+	return 0;
 }
 
 extern char trap_page[];
@@ -367,6 +450,7 @@ void syscall()
 		break;
 	case SYS_unlinkat:
 	    ret = sys_unlinkat(args[0],args[1],args[2]);
+		break;
 	case SYS_task_info:
 		ret = sys_task_info((TaskInfo *)args[0]);
 		break;
